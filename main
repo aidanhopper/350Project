@@ -1,0 +1,51 @@
+#!venv/bin/python3
+
+from pyeda.inter import exprvars
+from pyeda.inter import expr
+from pyeda.inter import truthtable
+from pyeda.inter import bddvars
+from pyeda.inter import ttvars
+from pyeda.inter import expr2bdd
+
+# have 32 nodes
+# so we need 5 bits to represent a node
+
+# an edge exists between node i & j when
+# (i + 3) % 32 == j % 32    or
+# (i + 8) % 32 == j % 32
+
+# input will be 10 vars
+
+
+def create_RR():
+    truevalues = []
+    for i in range(32):
+        for j in range(32):
+            if (i + 3) % 32 == j % 32 or (i + 8) % 32 == j % 32:
+                s = format(i, '05b')
+                s += format(j, '05b')
+                truevalues.append(s)
+
+    # build string using truevalues
+    expression = ""
+    map = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+    for s in truevalues:
+        for i, c in enumerate(s):
+            if c == '0':
+                expression += "~" + map[i] + " "
+            else:
+                expression += map[i] + " "
+            if i == 9:
+                expression += "| "
+            else:
+                expression += "& "
+    expression = expression[:-2]  # truncate the end
+
+    f = expr(expression)
+    return expr2bdd(f)
+
+
+if __name__ == '__main__':
+    RR = create_RR()
+    print(RR(27,3))
+    
