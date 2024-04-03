@@ -1,11 +1,9 @@
 #!venv/bin/python3
 
-from pyeda.inter import exprvars
 from pyeda.inter import expr
-from pyeda.inter import truthtable
-from pyeda.inter import bddvars
-from pyeda.inter import ttvars
 from pyeda.inter import expr2bdd
+from pyeda.inter import bddvar
+from pyeda.boolalg.bdd import BDDZERO
 
 # have 32 nodes
 # so we need 5 bits to represent a node
@@ -24,6 +22,9 @@ def create_RR():
             if (i + 3) % 32 == j % 32 or (i + 8) % 32 == j % 32:
                 s = format(i, '05b')
                 s += format(j, '05b')
+                truevalues.append(s)
+                s = format(j, '05b')
+                s += format(i, '05b')
                 truevalues.append(s)
 
     # build string using truevalues
@@ -45,7 +46,86 @@ def create_RR():
     return expr2bdd(f)
 
 
+def create_EVEN():
+    truevalues = []
+    for i in range(16):
+        s = format(i*2, '05b')
+        truevalues.append(s)
+
+    # build string using truevalues
+    expression = ""
+    map = ['a', 'b', 'c', 'd', 'e']
+    for s in truevalues:
+        for i, c in enumerate(s):
+            if c == '0':
+                expression += "~" + map[i] + " "
+            else:
+                expression += map[i] + " "
+            if i == 4:
+                expression += "| "
+            else:
+                expression += "& "
+    expression = expression[:-2]  # truncate the end
+
+    f = expr(expression)
+    return expr2bdd(f)
+
+
+def create_PRIME():
+    set = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
+    truevalues = []
+    for i in set:
+        s = format(i, '05b')
+        truevalues.append(s)
+
+    # build string using truevalues
+    expression = ""
+    map = ['a', 'b', 'c', 'd', 'e']
+    for s in truevalues:
+        for i, c in enumerate(s):
+            if c == '0':
+                expression += "~" + map[i] + " "
+            else:
+                expression += map[i] + " "
+            if i == 4:
+                expression += "| "
+            else:
+                expression += "& "
+    expression = expression[:-2]  # truncate the end
+
+    f = expr(expression)
+    return expr2bdd(f)
+
+
+def compare(b, *argv):
+    binary_value = ""
+    for arg in argv:
+        binary_value += format(arg, '05b')
+
+    map = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
+    expression = ""
+    for i, c in enumerate(binary_value):
+        if c == '0':
+            expression += "~" + map[i] + " "
+        else:
+            expression += map[i] + " "
+        expression += "& "
+    expression = expression[:-2]
+
+    print(expression)
+    t = BDDZERO
+    t = expr(expression)
+    return not ((t & b) == BDDZERO)
+
+
 if __name__ == '__main__':
-    RR = create_RR()
-    print(RR(27,3))
-    
+    rr = create_RR()
+    even = create_EVEN()
+    prime = create_PRIME()
+
+    compare(rr, 27, 4)
+#   print(compare(rr, 16, 20))
+#   print(compare(even, 14))
+#   print(compare(even, 13))
+#   print(compare(prime, 7))
+#   print(compare(prime, 0))
