@@ -23,9 +23,6 @@ def create_RR():
                 s = format(i, '05b')
                 s += format(j, '05b')
                 truevalues.append(s)
-                s = format(j, '05b')
-                s += format(i, '05b')
-                truevalues.append(s)
 
     # build string using truevalues
     expression = ""
@@ -112,8 +109,6 @@ def compare(b, *argv):
         expression += "& "
     expression = expression[:-2]
 
-    print(expression)
-    t = BDDZERO
     t = expr(expression)
     return not ((t & b) == BDDZERO)
 
@@ -124,8 +119,8 @@ if __name__ == '__main__':
     prime = create_PRIME()
 
     compare(rr, 27, 4)
-#   print(compare(rr, 16, 20))
-#   print(compare(even, 14))
-#   print(compare(even, 13))
-#   print(compare(prime, 7))
-#   print(compare(prime, 0))
+#   compare(rr, 16, 20))
+#   compare(even, 14))
+#   compare(even, 13))
+#   compare(prime, 7))
+#   compare(prime, 0))
