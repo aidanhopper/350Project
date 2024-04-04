@@ -2,27 +2,25 @@
 
 from pyeda.inter import expr
 from pyeda.inter import expr2bdd
-from pyeda.inter import bddvar
-from pyeda.boolalg.bdd import BDDZERO
 
-# have 32 nodes
-# so we need 5 bits to represent a node
 
-# an edge exists between node i & j when
-# (i + 3) % 32 == j % 32    or
-# (i + 8) % 32 == j % 32
-
-# input will be 10 vars
+def ints_to_true_bin_values(li, comparison):
+    ret = []
+    for i in li:
+        for j in li:
+            if comparison(i, j):
+                s = format(i, '05b')
+                s += format(j, '05b')
+                ret.append(s)
+    return ret
 
 
 def create_RR():
-    truevalues = []
-    for i in range(32):
-        for j in range(32):
-            if (i + 3) % 32 == j % 32 or (i + 8) % 32 == j % 32:
-                s = format(i, '05b')
-                s += format(j, '05b')
-                truevalues.append(s)
+
+    truevalues = ints_to_true_bin_values(
+        list(range(32)),
+        lambda i, j: (i + 3) % 32 == j % 32 or (i + 8) % 32 == j % 32
+    )
 
     # build string using truevalues
     expression = ""
@@ -44,6 +42,7 @@ def create_RR():
 
 
 def create_EVEN():
+
     truevalues = []
     for i in range(16):
         s = format(i*2, '05b')
@@ -69,9 +68,9 @@ def create_EVEN():
 
 
 def create_PRIME():
-    set = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
+    li = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
     truevalues = []
-    for i in set:
+    for i in li:
         s = format(i, '05b')
         truevalues.append(s)
 
@@ -94,7 +93,7 @@ def create_PRIME():
     return expr2bdd(f)
 
 
-def compare(b, *argv):
+def to_bdd(*argv):
     binary_value = ""
     for arg in argv:
         binary_value += format(arg, '05b')
@@ -108,9 +107,23 @@ def compare(b, *argv):
             expression += map[i] + " "
         expression += "& "
     expression = expression[:-2]
-
     t = expr(expression)
-    return not ((t & b) == BDDZERO)
+    t = expr2bdd(t)
+    return t
+
+
+def satisfies(bdd, expression):
+    set = expression.satisfy_one()
+    ret = True
+    for true_set in list(bdd.satisfy_all()):
+        ret = True
+        for k in true_set:
+            if k in set and set[k] != true_set[k]:
+                ret = False
+                break
+        if ret:
+            return ret
+    return ret
 
 
 if __name__ == '__main__':
@@ -118,9 +131,11 @@ if __name__ == '__main__':
     even = create_EVEN()
     prime = create_PRIME()
 
-    compare(rr, 27, 4)
-#   compare(rr, 16, 20))
-#   compare(even, 14))
-#   compare(even, 13))
-#   compare(prime, 7))
-#   compare(prime, 0))
+    assert satisfies(rr, to_bdd(27, 3))
+    assert not satisfies(rr, to_bdd(16, 20))
+    assert satisfies(even, to_bdd(14))
+    assert not satisfies(even, to_bdd(13))
+    assert satisfies(prime, to_bdd(7))
+    assert not satisfies(prime, to_bdd(2))
+
+    # use compose to create rr2 i think
