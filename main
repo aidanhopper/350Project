@@ -4,9 +4,8 @@ from pyeda.inter import expr
 from pyeda.inter import expr2bdd
 from pyeda.inter import bdd2expr
 from pyeda.inter import bddvars
-from pyeda.inter import bddvar
-from pyeda.boolalg.bdd import BDDZERO
 
+# Global vars for interacting with bdds
 m = ['x[0]', 'x[1]', 'x[2]', 'x[3]', 'x[4]',
      'y[0]', 'y[1]', 'y[2]', 'y[3]', 'y[4]']
 X = bddvars('x', 5)
@@ -14,6 +13,7 @@ Y = bddvars('y', 5)
 Z = bddvars('z', 5)
 
 
+# Converts elements in a list to binary strings when the comparison is true
 def ints_to_true_bin_values(li, comparison):
     ret = []
     for i in li:
@@ -25,6 +25,7 @@ def ints_to_true_bin_values(li, comparison):
     return ret
 
 
+# creates the RR bdd
 def create_rr():
     truevalues = ints_to_true_bin_values(
         list(range(32)),
@@ -50,6 +51,7 @@ def create_rr():
     return f
 
 
+# Creates the EVEN bdd
 def create_even():
     truevalues = []
     for i in range(16):
@@ -61,7 +63,7 @@ def create_even():
     for s in truevalues:
         for i, c in enumerate(s):
             if c == '0':
-                expression += "~" + m[i] + " "
+                expression += "~" + m[i + 5] + " "
             else:
                 expression += m[i] + " "
             if i == 4:
@@ -74,6 +76,7 @@ def create_even():
     return expr2bdd(f)
 
 
+# Creates the prime bdd
 def create_prime():
     li = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
     truevalues = []
@@ -99,6 +102,7 @@ def create_prime():
     return expr2bdd(f)
 
 
+# Converts input numbers to bdds concatinated with &
 def to_bdd(*argv):
     binary_value = ""
     for arg in argv:
@@ -116,10 +120,12 @@ def to_bdd(*argv):
     return expr2bdd(t)
 
 
+# checks that a bdd is satisfied with an expression (as a bdd)
 def satisfies(bdd, expression):
     return bdd.restrict(expression.satisfy_one())
 
 
+# does two step reachability calculation
 def two_step_reachable(r1, r2):
     return (r1.compose({
         Y[0]: Z[0], Y[1]: Z[1], Y[2]: Z[2], Y[3]: Z[3], Y[4]: Z[4]
@@ -128,6 +134,7 @@ def two_step_reachable(r1, r2):
     })).smoothing(Z)
 
 
+# compututes the trasitive closure on rr
 def transitive_closure(rr):
     h = rr
     hprime = None
@@ -137,25 +144,54 @@ def transitive_closure(rr):
     return h
 
 
+# main function
 if __name__ == '__main__':
+
+    # creating bdds
+    print("creating rr")
     rr = create_rr()
+    print("creating even")
     even = create_even()
+    print("creating prime")
     prime = create_prime()
 
+    # running test cases for those bdds
+    print("running test cases for rr")
     assert satisfies(rr, to_bdd(27, 3))
     assert not satisfies(rr, to_bdd(16, 20))
-    assert satisfies(even, to_bdd(14))
-    assert not satisfies(even, to_bdd(13))
+    print("running test cases for even")
+    assert satisfies(even, to_bdd(14).compose({
+        X[0]: Y[0], X[1]: Y[1], X[2]: Y[2], X[3]: Y[3], X[4]: Y[4]
+    }))
+    assert not satisfies(even, to_bdd(13).compose({
+        X[0]: Y[0], X[1]: Y[1], X[2]: Y[2], X[3]: Y[3], X[4]: Y[4]
+    }))
+    print("running test cases for prime")
     assert satisfies(prime, to_bdd(7))
     assert not satisfies(prime, to_bdd(2))
 
+    # computes the two step reachability of rr
+    print("computing rr2")
     rr2 = two_step_reachable(rr, rr)
 
+    # running test cases for rr2
+    print("running test cases for rr2")
     assert satisfies(rr2, to_bdd(27, 6))
     assert not satisfies(rr2, to_bdd(27, 9))
 
+    # computes the transitive closure of rr2
+    print("computing rr2star")
     rr2star = transitive_closure(rr2)
 
-    assert satisfies(rr2star, to_bdd(0, 12))
+    # computes statement A
+    print("computing statement A")
+    banana = rr2star & prime & even
+    apple = banana.smoothing(Y)
+    fish = ~(prime) | apple
+    ret = ~((~fish).smoothing(X))
 
-    
+    # prints truth value
+    if ret:
+        print("statement A is true")
+    else:
+        print("statement A is false")
