@@ -2,9 +2,16 @@
 
 from pyeda.inter import expr
 from pyeda.inter import expr2bdd
+from pyeda.inter import bdd2expr
 from pyeda.inter import bddvars
 from pyeda.inter import bddvar
 from pyeda.boolalg.bdd import BDDZERO
+
+m = ['x[0]', 'x[1]', 'x[2]', 'x[3]', 'x[4]',
+     'y[0]', 'y[1]', 'y[2]', 'y[3]', 'y[4]']
+X = bddvars('x', 5)
+Y = bddvars('y', 5)
+Z = bddvars('z', 5)
 
 
 def ints_to_true_bin_values(li, comparison):
@@ -18,8 +25,7 @@ def ints_to_true_bin_values(li, comparison):
     return ret
 
 
-def create_RR():
-
+def create_rr():
     truevalues = ints_to_true_bin_values(
         list(range(32)),
         lambda i, j: (i + 3) % 32 == j % 32 or (i + 8) % 32 == j % 32
@@ -27,13 +33,12 @@ def create_RR():
 
     # build string using truevalues
     expression = ""
-    map = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
     for s in truevalues:
         for i, c in enumerate(s):
             if c == '0':
-                expression += "~" + map[i] + " "
+                expression += "~" + m[i] + " "
             else:
-                expression += map[i] + " "
+                expression += m[i] + " "
             if i == 9:
                 expression += "| "
             else:
@@ -41,11 +46,11 @@ def create_RR():
     expression = expression[:-2]  # truncate the end
 
     f = expr(expression)
-    return expr2bdd(f)
+    f = expr2bdd(f)
+    return f
 
 
-def create_EVEN():
-
+def create_even():
     truevalues = []
     for i in range(16):
         s = format(i*2, '05b')
@@ -53,13 +58,12 @@ def create_EVEN():
 
     # build string using truevalues
     expression = ""
-    map = ['a', 'b', 'c', 'd', 'e']
     for s in truevalues:
         for i, c in enumerate(s):
             if c == '0':
-                expression += "~" + map[i] + " "
+                expression += "~" + m[i] + " "
             else:
-                expression += map[i] + " "
+                expression += m[i] + " "
             if i == 4:
                 expression += "| "
             else:
@@ -70,7 +74,7 @@ def create_EVEN():
     return expr2bdd(f)
 
 
-def create_PRIME():
+def create_prime():
     li = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31]
     truevalues = []
     for i in li:
@@ -79,13 +83,12 @@ def create_PRIME():
 
     # build string using truevalues
     expression = ""
-    map = ['a', 'b', 'c', 'd', 'e']
     for s in truevalues:
         for i, c in enumerate(s):
             if c == '0':
-                expression += "~" + map[i] + " "
+                expression += "~" + m[i] + " "
             else:
-                expression += map[i] + " "
+                expression += m[i] + " "
             if i == 4:
                 expression += "| "
             else:
@@ -101,18 +104,16 @@ def to_bdd(*argv):
     for arg in argv:
         binary_value += format(arg, '05b')
 
-    map = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']
     expression = ""
     for i, c in enumerate(binary_value):
         if c == '0':
-            expression += "~" + map[i] + " "
+            expression += "~" + m[i] + " "
         else:
-            expression += map[i] + " "
+            expression += m[i] + " "
         expression += "& "
     expression = expression[:-2]
     t = expr(expression)
-    t = expr2bdd(t)
-    return t
+    return expr2bdd(t)
 
 
 def satisfies(bdd, expression):
@@ -120,26 +121,26 @@ def satisfies(bdd, expression):
 
 
 def two_step_reachable(r1, r2):
-    a, b, c, d, e, f, g, h, i, j = map(bddvar, 'abcdefghij')
-    X = bddvars('x', 5)
-    Y = bddvars('y', 5)
-    Z = bddvars('z', 5)
     return (r1.compose({
-        a: X[0], b: X[1], c: X[2], d: X[3], e: X[4],
-        f: Z[0], g: Z[1], h: Z[2], i: Z[3], j: Z[4]
+        Y[0]: Z[0], Y[1]: Z[1], Y[2]: Z[2], Y[3]: Z[3], Y[4]: Z[4]
     }) & r2.compose({
-        a: Z[0], b: Z[1], c: Z[2], d: Z[3], e: Z[4],
-        f: Y[0], g: Y[1], h: Y[2], i: Y[3], j: Y[4]
-    })).smoothing(Z).compose({
-        X[0]: a, X[1]: b, X[2]: c, X[3]: d, X[4]: e,
-        Y[0]: f, Y[1]: g, Y[2]: h, Y[3]: i, Y[4]: j
-    })
+        X[0]: Z[0], X[1]: Z[1], X[2]: Z[2], X[3]: Z[3], X[4]: Z[4],
+    })).smoothing(Z)
+
+
+def transitive_closure(rr):
+    h = rr
+    hprime = None
+    while h is not hprime:
+        hprime = h
+        h = hprime | two_step_reachable(h, rr)
+    return h
 
 
 if __name__ == '__main__':
-    rr = create_RR()
-    even = create_EVEN()
-    prime = create_PRIME()
+    rr = create_rr()
+    even = create_even()
+    prime = create_prime()
 
     assert satisfies(rr, to_bdd(27, 3))
     assert not satisfies(rr, to_bdd(16, 20))
@@ -153,16 +154,8 @@ if __name__ == '__main__':
     assert satisfies(rr2, to_bdd(27, 6))
     assert not satisfies(rr2, to_bdd(27, 9))
 
-    h = rr2
-    i = 0
-    rstar = BDDZERO
-    while True:
-        print("steps: " + str(i))
-        i += 1
-        hprime = h
-        h = hprime | two_step_reachable(hprime, rr2)
-        if h is hprime:
-            break
+    rr2star = transitive_closure(rr2)
 
-    print(list(rstar.satisfy_all()))
-    assert satisfies(rstar, to_bdd(0, 12))
+    assert satisfies(rr2star, to_bdd(0, 12))
+
+    
