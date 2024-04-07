@@ -2,6 +2,9 @@
 
 from pyeda.inter import expr
 from pyeda.inter import expr2bdd
+from pyeda.inter import bddvars
+from pyeda.inter import bddvar
+from pyeda.boolalg.bdd import BDDZERO
 
 
 def ints_to_true_bin_values(li, comparison):
@@ -113,17 +116,24 @@ def to_bdd(*argv):
 
 
 def satisfies(bdd, expression):
-    set = expression.satisfy_one()
-    ret = True
-    for true_set in list(bdd.satisfy_all()):
-        ret = True
-        for k in true_set:
-            if k in set and set[k] != true_set[k]:
-                ret = False
-                break
-        if ret:
-            return ret
-    return ret
+    return bdd.restrict(expression.satisfy_one())
+
+
+def two_step_reachable(r1, r2):
+    a, b, c, d, e, f, g, h, i, j = map(bddvar, 'abcdefghij')
+    X = bddvars('x', 5)
+    Y = bddvars('y', 5)
+    Z = bddvars('z', 5)
+    return (r1.compose({
+        a: X[0], b: X[1], c: X[2], d: X[3], e: X[4],
+        f: Z[0], g: Z[1], h: Z[2], i: Z[3], j: Z[4]
+    }) & r2.compose({
+        a: Z[0], b: Z[1], c: Z[2], d: Z[3], e: Z[4],
+        f: Y[0], g: Y[1], h: Y[2], i: Y[3], j: Y[4]
+    })).smoothing(Z).compose({
+        X[0]: a, X[1]: b, X[2]: c, X[3]: d, X[4]: e,
+        Y[0]: f, Y[1]: g, Y[2]: h, Y[3]: i, Y[4]: j
+    })
 
 
 if __name__ == '__main__':
@@ -138,4 +148,21 @@ if __name__ == '__main__':
     assert satisfies(prime, to_bdd(7))
     assert not satisfies(prime, to_bdd(2))
 
-    # use compose to create rr2 i think
+    rr2 = two_step_reachable(rr, rr)
+
+    assert satisfies(rr2, to_bdd(27, 6))
+    assert not satisfies(rr2, to_bdd(27, 9))
+
+    h = rr2
+    i = 0
+    rstar = BDDZERO
+    while True:
+        print("steps: " + str(i))
+        i += 1
+        hprime = h
+        h = hprime | two_step_reachable(hprime, rr2)
+        if h is hprime:
+            break
+
+    print(list(rstar.satisfy_all()))
+    assert satisfies(rstar, to_bdd(0, 12))
